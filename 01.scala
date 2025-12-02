@@ -1,43 +1,31 @@
 package adventofcode.day01
 
 import scala.io.Source
-import java.io.File
 
 def input(isExample: Boolean) =
     val inputFile = if isExample then "example.txt" else "input.txt"
-    Source.fromFile(new File(inputFile))
+    Source.fromFile(inputFile)
         .getLines()
             .map:
-                line =>
-                    val (direction, value) = line.splitAt(1)
-                    (direction, value.toInt)
-            .toList
+                case s"L$rotation" => -rotation.toInt
+                case s"R$rotation" => rotation.toInt
+            .toSeq
 end input
 
 def part1(isExample: Boolean = false) = 
-    input(isExample).foldLeft((50, 0)):
-        case ((currVal, currRes), (direction, value)) =>
-            val newVal =
-                if direction == "L" then
-                    (100 + currVal - value) % 100
-                else
-                    (currVal + value) % 100
-            (newVal, currRes + (if newVal == 0 then 1 else 0))
+    input(isExample)
+        .scanLeft(50): (acc, rotation) =>
+            math.floorMod(acc + rotation, 100)
+        .count(_ == 0)
 end part1
 
 def part2(isExample: Boolean = false) =
-    input(isExample).foldLeft((50, 0)):
-        case ((currVal, currRes), (direction, value)) =>
-            val wholeTurns = value / 100
-            val partTurn = value % 100
-            val (newVal, cntZero) =
-                if direction == "L" then
-                    ((100 + currVal - partTurn) % 100,
-                        if partTurn > 0 && currVal > 0 && currVal - partTurn <= 0 then 1 else 0)
-                else
-                    ((currVal + value) % 100,
-                        if partTurn > 0 && currVal + partTurn >= 100 then 1 else 0)
-            (newVal, currRes + cntZero + wholeTurns)
+    input(isExample)
+        .flatMap: rotation =>
+            Seq.fill(rotation.abs)(rotation.sign)
+        .scanLeft(50): (acc, rotation) =>
+            math.floorMod(acc + rotation, 100)
+        .count(_ == 0)
 end part2
 
 @main def main() =
