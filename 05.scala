@@ -1,7 +1,5 @@
 package adventofcode.day05
 
-import scala.collection.Searching.Found
-
 def input(isExample: Boolean) =
     val inputFile = if isExample then "example.txt" else "input.txt"
     val Array(ranges, ids) = scala.io.Source.fromFile(inputFile)
@@ -11,12 +9,12 @@ def input(isExample: Boolean) =
         ranges
             .split("\\R")
             .map:
-                case s"$min-$max" => (BigInt(min.strip()), BigInt(max.strip()))
-            .sorted
+                case s"$min-$max" => min.strip().toLong to max.strip().toLong
+            .sortBy(_.start)
             .toSeq,
         ids
             .split("\\R")
-            .map(id => BigInt(id.strip()))
+            .map(id => id.strip().toLong)
             .toSeq
     )
 end input
@@ -26,22 +24,23 @@ def part1(isExample: Boolean = false) =
     ids
         .filter: id =>
             ranges.exists: range =>
-                range._1 <= id && id <= range._2
+                range.start <= id && id <= range.end
         .length
 end part1
 
 def part2(isExample: Boolean = false) =
     val (ranges, _) = input(isExample)
-    ranges.foldLeft((BigInt(0), BigInt(0)), BigInt(0)): (acc, curr) =>
+    ranges.foldLeft(0L to 0L, 0L): (acc, curr) =>
         val (prev, total) = acc
-        val newRange = (curr._1.max(prev._1), curr._2.max(prev._2))
-
-        if curr._1 >= prev._1 && curr._2 <= prev._2 then
+        val newRange = curr.start to curr.end.max(prev.end)
+        if curr.start >= prev.start && curr.end <= prev.end then
             (newRange, total)
         else
-            val toAdd = curr._2 - curr._1 + 1
-                - (if prev._2 >= curr._1 then prev._2 - curr._1 + 1 else 0)
-            (newRange, total + toAdd)
+            (
+                newRange,
+                total + curr.end - curr.start + 1
+                    - (if prev.end >= curr.start then prev.end - curr.start + 1 else 0)
+            )
     ._2
 end part2
 
