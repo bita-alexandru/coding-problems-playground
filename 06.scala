@@ -15,33 +15,32 @@ def part1(isExample: Boolean = false) =
         case (ops, numbers) =>
             (
                 ops.toString.split("\\s+").filter(_.strip().nonEmpty),
-                numbers.map(_.toString.split("\\s+").filter(_.strip().nonEmpty))
+                numbers.map(_.toString.split("\\s+").filter(_.strip().nonEmpty).map(_.toLong))
             )
-    val (cols, rows) = (ops.length, numbers.length)
-    (0 until cols).map: col =>
-        val selected = (0 until rows).map(numbers(_)(col).toLong)
-        if ops(col) == "+" then selected.sum
-        else selected.product
-    .sum
+    numbers.transpose.foldLeft((total = 0L, i = 0)): (acc, elements) =>
+        ops(acc.i) match
+            case "+" => (acc.total + elements.sum, acc.i + 1)
+            case "*" => (acc.total + elements.product, acc.i + 1)
+    .total
 end part1
 
 def part2(isExample: Boolean = false) =
-    val (ops, numbers) = input(isExample)
-    val (rows, cols) = (numbers.length, ops.length)
-    (0 until cols)
-        .foldLeft((prevOp = ops.head, prevNums = Seq[Long]().empty, total = 0L)): (acc, col) =>
-            val numStr = (0 until rows).map(numbers(_)(col)).mkString.strip()
-            val numLong = if numStr.isEmpty() then 0 else numStr.toLong
-            val newOp = if ops(col) == ' ' then acc.prevOp else ops(col)
-            val newNums = if numStr.isEmpty() then Seq[Long]().empty
-                else numLong +: acc.prevNums
-            val toAdd = if col == cols - 1|| numStr.isEmpty() then
-                newOp match
-                    case '+' => acc.prevNums.sum + (if col == cols - 1 then numLong else 0)
-                    case '*' => acc.prevNums.product * (if col == cols - 1 then numLong else 1)
-                else 0
-            (newOp, newNums, acc.total + toAdd)
-        .total
+    val (ops, numbers) = input(isExample) match
+        case (ops, numbers) =>
+            (
+                ops.toString.split("\\s+").filter(_.strip().nonEmpty),
+                numbers.transpose.map(_.mkString.strip())
+            )
+    numbers.foldLeft((total = 0L, opPos = 0, numPos = 0, prevNums = Seq[Long]().empty)): (acc, numStr) =>
+        val numLong = numStr.toLongOption.getOrElse(if ops(acc.opPos) == "+" then 0L else 1L)
+        if acc.numPos == numbers.length - 1 || numStr.isBlank then
+            ops(acc.opPos) match
+                case "+" =>
+                    (acc.total + (numLong +: acc.prevNums).sum, acc.opPos + 1, acc.numPos + 1, Seq[Long]().empty)
+                case "*" =>
+                    (acc.total + (numLong +: acc.prevNums).product, acc.opPos + 1, acc.numPos + 1, Seq[Long]().empty)
+        else (acc.total, acc.opPos, acc.numPos + 1, numLong +: acc.prevNums)
+    .total
 end part2
 
 @main def main() =
