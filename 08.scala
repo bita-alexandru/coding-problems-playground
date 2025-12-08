@@ -1,89 +1,91 @@
 package adventofcode.day08
 
-import scala.math.{sqrt, pow}
+import scala.annotation.tailrec
+import scala.math.{pow, sqrt}
 
-def input(isExample: Boolean) =
+case class Point(x: Int, y: Int, z: Int)
+case class Edge(p1: Point, p2: Point, dist: Double)
+
+case class DisjointSet(
+    parents: Map[Point, Point],
+    sizes: Map[Point, Int],
+    clusterCount: Int
+):
+    @tailrec
+    private def find(p: Point): Point =
+        val parent = parents(p)
+        if parent == p then p else find(parent)
+    end find
+
+    def union(p1: Point, p2: Point): DisjointSet =
+        val root1 = find(p1)
+        val root2 = find(p2)
+        if root1 != root2 then
+            val newParents = parents.updated(root2, root1)
+            val newSizes = sizes.updated(root1, sizes(root1) + sizes(root2)) - root2
+            copy(parents = newParents, sizes = newSizes, clusterCount = clusterCount - 1)
+        else
+            this
+    end union
+end DisjointSet
+
+object DisjointSet:
+    def fromPoints(points: Seq[Point]): DisjointSet =
+        DisjointSet(
+            parents = points.map(p => p -> p).toMap,
+            sizes = points.map(p => p -> 1).toMap,
+            clusterCount = points.size
+        )
+    end fromPoints
+end DisjointSet
+
+def input(isExample: Boolean): (Seq[Point], Seq[Edge]) =
     val inputFile = if isExample then "example.txt" else "input.txt"
-    scala.io.Source.fromFile(inputFile)
+    val points = scala.io.Source.fromFile(inputFile)
         .getLines()
-        .map(_.split(",").map(_.toInt).toSeq)
-        .toSeq.combinations(2)
+        .map: line => 
+            val Array(x, y, z) = line.split(",").map(_.trim.toInt)
+            Point(x, y, z)
+        .toSeq
+    val edges = points.combinations(2)
         .map:
-            case Seq(a, b) => (a = a, b = b, dist = sqrt(pow(a(0) - b(0), 2) + pow(a(1) - b(1), 2) + pow(a(2) - b(2), 2)))
+            case Seq(a, b) =>
+                val dist = sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2) + pow(a.z - b.z, 2))
+                Edge(a, b, dist)
         .toSeq
         .sortBy(_.dist)
+    (points, edges)
 end input
 
 def part1(isExample: Boolean = false) =
-    val ordJunc = input(isExample)
-    var circId = 0
-    var juncCircMap = collection.mutable.Map[Seq[Int], Int]().empty
-    var circJuncsMap = collection.mutable.Map[Int, Set[Seq[Int]]]().empty
-    var (connections, pos) = (0, 0)
-    while connections < (if isExample then 10 else 1000) && pos < ordJunc.length do
-        ordJunc(pos) match
-            case (a, b, _) if !juncCircMap.contains(a) && !juncCircMap.contains(b) =>
-                connections += 1
-                juncCircMap.addOne(a -> circId)
-                juncCircMap.addOne(b -> circId)
-                circJuncsMap(circId) = Set(a, b)
-                circId += 1
-            case (a, b, _) if juncCircMap.contains(a) && !juncCircMap.contains(b) =>
-                connections += 1
-                juncCircMap.addOne(b -> juncCircMap(a))
-                circJuncsMap(juncCircMap(a)) = circJuncsMap(juncCircMap(a)).incl(b)
-            case (a, b, _) if !juncCircMap.contains(a) && juncCircMap.contains(b) =>
-                connections += 1
-                juncCircMap.addOne(a -> juncCircMap(b))
-                circJuncsMap(juncCircMap(b)) = circJuncsMap(juncCircMap(b)).incl(a)
-            case (a, b, _) if juncCircMap(a) == juncCircMap(b) => 
-                connections += 1
-            case (a, b, _) if juncCircMap(a) != juncCircMap(b) =>
-                connections += 1
-                val aCircId = juncCircMap(a)
-                val bCircId = juncCircMap(b)
-                circJuncsMap(aCircId) = circJuncsMap(aCircId).union(circJuncsMap(bCircId))
-                circJuncsMap(bCircId).foreach(juncCircMap(_) = aCircId)
-                circJuncsMap.remove(bCircId)
-        pos += 1
-    circJuncsMap.toSeq.sortBy(_._2.size).takeRight(3).map(_._2.size).product
+    val (points, allEdges) = input(isExample)
+    val limit = if isExample then 10 else 1000
+    val initialDS = DisjointSet.fromPoints(points)
+
+    allEdges.take(limit).foldLeft(initialDS): (ds, edge) =>
+        ds.union(edge.p1, edge.p2)
+    .sizes.values.toSeq
+    .sortBy(-_)
+    .take(3)
+    .product
 end part1
 
 def part2(isExample: Boolean = false) =
-    val ordJunc = input(isExample)
-    val points = ordJunc.flatMap(p => Seq(p.a, p.b)).distinct
-    var circId = 0
-    var juncCircMap = collection.mutable.Map[Seq[Int], Int]().empty
-    var circJuncsMap = collection.mutable.Map[Int, Set[Seq[Int]]]().empty
-    var (pos, res) = (0, -1L)
-    while pos < ordJunc.length && res == -1L do
-        ordJunc(pos) match
-            case (a, b, _) if !juncCircMap.contains(a) && !juncCircMap.contains(b) =>
-                juncCircMap.addOne(a -> circId)
-                juncCircMap.addOne(b -> circId)
-                circJuncsMap(circId) = Set(a, b)
-                circId += 1
-            case (a, b, _) if juncCircMap.contains(a) && !juncCircMap.contains(b) =>
-                juncCircMap.addOne(b -> juncCircMap(a))
-                circJuncsMap(juncCircMap(a)) = circJuncsMap(juncCircMap(a)).incl(b)
-                if circJuncsMap(juncCircMap(a)).size == points.length then
-                    res = 1L * a(0) * b(0)
-            case (a, b, _) if !juncCircMap.contains(a) && juncCircMap.contains(b) =>
-                juncCircMap.addOne(a -> juncCircMap(b))
-                circJuncsMap(juncCircMap(b)) = circJuncsMap(juncCircMap(b)).incl(a)
-                if circJuncsMap(juncCircMap(b)).size == points.length then
-                    res = 1L * a(0) * b(0)
-            case (a, b, _) if juncCircMap(a) == juncCircMap(b) => {}
-            case (a, b, _) if juncCircMap(a) != juncCircMap(b) =>
-                val aCircId = juncCircMap(a)
-                val bCircId = juncCircMap(b)
-                circJuncsMap(aCircId) = circJuncsMap(aCircId).union(circJuncsMap(bCircId))
-                circJuncsMap(bCircId).foreach(juncCircMap(_) = aCircId)
-                circJuncsMap.remove(bCircId)
-                if circJuncsMap(aCircId).size == points.length then
-                    res = 1L * a(0) * b(0)
-        pos += 1
-    res
+    val (points, allEdges) = input(isExample)
+    val initialDS = DisjointSet.fromPoints(points)
+
+    @tailrec
+    def recurse(edges: List[Edge], currentDS: DisjointSet): Long =
+        edges match
+            case Nil => 0L
+            case edge :: rest =>
+                val nextDS = currentDS.union(edge.p1, edge.p2)
+                if nextDS.clusterCount == 1 then
+                    edge.p1.x.toLong * edge.p2.x.toLong
+                else
+                    recurse(rest, nextDS)
+    end recurse
+    recurse(allEdges.toList, initialDS)
 end part2
 
 @main def main() =
