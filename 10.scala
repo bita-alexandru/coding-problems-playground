@@ -1,7 +1,5 @@
 package adventofcode.day10
 
-import scala.annotation.tailrec
-
 def input(isExample: Boolean) =
     val inputFile = if isExample then "example.txt" else "input.txt"
     scala.io.Source.fromFile(inputFile)
