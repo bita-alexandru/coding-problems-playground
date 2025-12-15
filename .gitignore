@@ -4,6 +4,9 @@
 .vscode
 
 *.txt
+<<<<<<< HEAD
 *.in
 *.out
 *.exe
+=======
+>>>>>>> advent-of-code/master
